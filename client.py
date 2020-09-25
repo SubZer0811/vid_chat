@@ -1,33 +1,35 @@
 from socket import AF_INET, socket, SOCK_STREAM
 import cv2
 import numpy as np
+from send_recv import *
 
 HOST=''
 PORT=33003
-SIZE = (360, 640, 3)
+SIZE = (640, 360)
 MSGLEN = 691200
-
-def myreceive():
-    msg = b''
-    while len(msg) < MSGLEN:
-        chunk = client_socket.recv(MSGLEN-len(msg))
-        if chunk == b'':
-            raise RuntimeError("socket connection broken")
-        msg = msg + chunk
-    return msg
 
 ADDR=(HOST,int(PORT))
 client_socket=socket(AF_INET,SOCK_STREAM)
 client_socket.connect(ADDR)
 
-# data = client_socket.recv(691200)
+cam = cv2.VideoCapture(0)
+ret, img = cam.read()
 
 while(1):
-    data = myreceive()
-    print(len(data))
-    new = np.frombuffer(data, dtype=np.uint8).reshape((360, 640, 3))
-    cv2.imshow("testing", new)
-    cv2.waitKey(1)
+	img = cv2.resize(img, SIZE)
+	data = np.array(img)
+	data = data.tostring()
+	send(client_socket, data)
 
-cv2.waitKey(0)
+	# receiving processed frames from server
+	recvd = receive(client_socket)
+	recvd = np.frombuffer(recvd, dtype=np.uint8).reshape((360, 640, 3))
+	cv2.imshow("vid_chat", recvd)
+
+	key = cv2.waitKey(1)
+	if key == ord('q'):
+		break
+	
+	ret, img = cam.read()
+
 client_socket.close()
